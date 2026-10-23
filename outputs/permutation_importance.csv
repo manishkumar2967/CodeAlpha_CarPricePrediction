@@ -1,0 +1,10 @@
+feature,mae_increase,std
+Transmission,-0.03,0.0297
+vehicle_type,0.0009,0.0012
+owner_prev,0.0031,0.0035
+Selling_type,0.0103,0.0197
+Driven_kms,0.038,0.0408
+brand,0.0572,0.0213
+Fuel_Type,0.2418,0.0529
+age,0.7551,0.1156
+Present_Price,4.2998,0.3705

@@ -1,0 +1,5 @@
+actual,n,MAE_lakh,median_abs_pct_error
+< 1 lakh,16,0.07,16.99
+1-4 lakh,15,0.35,9.51
+4-10 lakh,22,0.54,6.81
+> 10 lakh,7,2.38,7.42

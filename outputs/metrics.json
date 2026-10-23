@@ -1,0 +1,25 @@
+{
+  "selected_model": "Gradient Boosting",
+  "best_params": {
+    "learning_rate": 0.03,
+    "max_depth": 4,
+    "n_estimators": 400,
+    "subsample": 0.8
+  },
+  "cv_mae_lakh": 0.605,
+  "test_r2": 0.95,
+  "test_mae_lakh": 0.582,
+  "test_rmse_lakh": 1.308,
+  "test_r2_95ci": [
+    0.923,
+    0.986
+  ],
+  "test_mae_95ci": [
+    0.341,
+    0.927
+  ],
+  "baseline_test_mae_lakh": 3.564,
+  "rows_used": 299,
+  "train_rows": 239,
+  "test_rows": 60
+}

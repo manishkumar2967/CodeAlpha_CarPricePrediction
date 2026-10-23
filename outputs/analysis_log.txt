@@ -1,0 +1,122 @@
+=== 1. DATA CLEANING ===
+Raw shape: (301, 9); missing values: 0
+Dropped 2 exact duplicate rows -> 299 rows
+Sanity check passed: no vehicle sells for more than its current new (showroom) price.
+Extreme values kept (real vehicles, handled with log transforms): max Driven_kms = 500,000, max Present_Price = 92.6 lakh (Land Cruiser)
+
+=== 2. FEATURE ENGINEERING ===
+vehicle_type counts: {'Car': 198, 'Two-wheeler': 101}
+brand counts: {'Hyundai': 50, 'Honda': 50, 'Maruti Suzuki': 49, 'Toyota': 49, 'Bajaj': 25, 'Honda Bikes': 20, 'Royal Enfield': 17, 'Hero': 15, 'Yamaha': 8, 'TVS': 8, 'KTM': 4, 'UM': 1, 'Hyosung': 1, 'Mahindra Bikes': 1, 'Suzuki Bikes': 1}
+The file mixes cars and two-wheelers; the 98 raw Car_Name values were reduced to brand + vehicle_type.
+The dataset has no horsepower or mileage (km/l) column; Driven_kms is the usage measure.
+
+=== 3. EXPLORATORY ANALYSIS ===
+       Selling_Price  Present_Price  Driven_kms     age
+count         299.00         299.00      299.00  299.00
+mean            4.59           7.54    36916.75    4.38
+std             4.98           8.57    39015.17    2.90
+min             0.10           0.32      500.00    0.00
+25%             0.85           1.20    15000.00    2.00
+50%             3.51           6.10    32000.00    4.00
+75%             6.00           9.84    48883.50    6.00
+max            35.00          92.60   500000.00   15.00
+Selling_Price skew: 2.54; after log1p: 0.11
+Correlation of Selling_Price with Present_Price: 0.88; with age: -0.23; with Driven_kms: 0.03
+
+Median resale/new price by age (cars | two-wheelers):
+vehicle_type   Car  Two-wheeler
+age                            
+0             0.94          NaN
+1             0.91         0.91
+2             0.78         0.80
+3             0.72         0.71
+4             0.63         0.56
+5             0.54         0.55
+6             0.48         0.51
+7             0.48         0.48
+8             0.36         0.47
+9             0.30         0.51
+10            0.22         0.33
+11             NaN         0.24
+Median retention by Fuel_Type: {'CNG': 0.51, 'Diesel': 0.67, 'Petrol': 0.64}
+Median retention by Transmission: {'Automatic': 0.67, 'Manual': 0.65}
+Median retention by Selling_type: {'Dealer': 0.66, 'Individual': 0.62}
+Median retention by owner_prev: {0: 0.66, 1: 0.35}
+
+Brand resale retention (brands with >= 5 listings); adj = mean log-retention vs the age curve of its vehicle type (+ = holds value better than same-age peers):
+               retention   n  med_age   adj
+brand                                      
+Toyota              0.52  49      5.0 -0.11
+Honda Bikes         0.56  20      3.5 -0.09
+Bajaj               0.56  25      4.0 -0.05
+Honda               0.70  50      3.0 -0.02
+Yamaha              0.68   8      3.0 -0.00
+Hero                0.62  15      5.0  0.03
+Maruti Suzuki       0.67  49      4.0  0.04
+Hyundai             0.68  50      3.0  0.09
+TVS                 0.64   8      4.0  0.09
+Royal Enfield       0.76  17      3.0  0.14
+
+=== 4. MODEL COMPARISON ===
+Train 239 rows / test 60 rows (stratified by vehicle type; test set is untouched until step 6)
+Repeated 5-fold CV (3 repeats) on the training set; errors in lakh INR:
+                  model     R2  R2_std   MAE  MAE_std  RMSE
+            Extra Trees  0.883   0.135 0.634    0.204 1.495
+      Gradient Boosting  0.884   0.130 0.644    0.206 1.494
+          Random Forest  0.875   0.136 0.679    0.234 1.569
+      Linear Regression  0.925   0.023 0.720    0.104 1.236
+                  Ridge  0.921   0.020 0.728    0.118 1.279
+Baseline (median price) -0.073   0.060 3.253    0.483 4.775
+
+=== 5. TUNING ===
+Random Forest: best CV MAE 0.676 lakh, params {'max_depth': None, 'min_samples_leaf': 1, 'n_estimators': 600}
+Extra Trees: best CV MAE 0.625 lakh, params {'max_depth': 12, 'min_samples_leaf': 1, 'n_estimators': 300}
+Gradient Boosting: best CV MAE 0.605 lakh, params {'learning_rate': 0.03, 'max_depth': 4, 'n_estimators': 400, 'subsample': 0.8}
+Ridge: best CV MAE 0.720 lakh, params {'alpha': 0.01}
+Selected model (lowest CV MAE): Gradient Boosting
+
+Brand ablation (CV on training set, same tuned model):
+                  R2  R2_std    MAE  MAE_std   RMSE
+with brand     0.897   0.120  0.605    0.185  1.408
+without brand  0.893   0.119  0.632    0.193  1.443
+
+=== 6. FINAL EVALUATION ON HELD-OUT TEST SET ===
+Gradient Boosting: R2 = 0.950, MAE = 0.582 lakh, RMSE = 1.308 lakh
+Baseline (always predict the median price): R2 = -0.083, MAE = 3.564 lakh
+Bootstrap 95% CI (2000 resamples of the 60 test rows): R2 [0.923, 0.986], MAE [0.341, 0.927] lakh
+
+Error by price band:
+            n  MAE_lakh  median_abs_pct_error
+actual                                       
+< 1 lakh   16      0.07                 16.99
+1-4 lakh   15      0.35                  9.51
+4-10 lakh  22      0.54                  6.81
+> 10 lakh   7      2.38                  7.42
+
+Error by vehicle type:
+               n  MAE_lakh  median_abs_pct_error
+vehicle_type                                    
+Car           40      0.82                  7.66
+Two-wheeler   20      0.11                 18.36
+
+Largest test errors:
+      vehicle  actual  predicted  error
+63   fortuner   33.00      24.61  -8.39
+52   fortuner   16.00      12.53  -3.47
+50   fortuner   23.00      20.97  -2.03
+21        sx4    4.40       2.62  -1.78
+258      city    9.15      10.48   1.33
+
+Permutation importance (increase in test MAE, lakh INR, when the column is shuffled):
+      feature  mae_increase   std
+Present_Price         4.300 0.370
+          age         0.755 0.116
+    Fuel_Type         0.242 0.053
+        brand         0.057 0.021
+   Driven_kms         0.038 0.041
+ Selling_type         0.010 0.020
+   owner_prev         0.003 0.004
+ vehicle_type         0.001 0.001
+ Transmission        -0.030 0.030
+
+Saved outputs/car_price_model.joblib (refit on all 299 rows; use predict.py to try it).
